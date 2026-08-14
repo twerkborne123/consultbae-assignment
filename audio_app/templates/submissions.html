@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Audio Submissions</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+</head>
+
+<body>
+
+<div class="container wide">
+
+    <h1>Audio Submissions</h1>
+
+    <a
+        class="link"
+        href="{{ url_for('index') }}"
+    >
+        ← New submission
+    </a>
+
+    {% with messages = get_flashed_messages() %}
+
+        {% if messages %}
+
+            {% for message in messages %}
+
+                <div class="flash">
+                    {{ message }}
+                </div>
+
+            {% endfor %}
+
+        {% endif %}
+
+    {% endwith %}
+
+
+    {% if submissions %}
+
+        {% for submission in submissions %}
+
+        <div class="submission">
+
+            <h2>
+                {{ submission["canonical_name"] or submission["name"] }}
+            </h2>
+
+            <p>
+                <strong>Phone:</strong>
+                {{ submission["phone"] }}
+            </p>
+
+
+            <audio
+                controls
+                preload="metadata"
+            >
+
+                <source
+                    src="{{ url_for(
+                        'uploaded_file',
+                        filename=submission['file_path']
+                    ) }}"
+                >
+
+                Your browser does not support audio playback.
+
+            </audio>
+
+
+            <div class="metadata">
+
+                <div>
+
+                    <strong>
+                        Duration
+                    </strong>
+
+                    <span>
+                        {{ submission["duration_sec"] }}
+                        sec
+                    </span>
+
+                </div>
+
+
+                <div>
+
+                    <strong>
+                        Sample Rate
+                    </strong>
+
+                    <span>
+                        {{ submission["sample_rate_hz"] }}
+                        Hz
+                    </span>
+
+                </div>
+
+
+                <div>
+
+                    <strong>
+                        Bitrate
+                    </strong>
+
+                    <span>
+
+                        {% if submission["bitrate_kbps"] %}
+                            {{ submission["bitrate_kbps"] }} kbps
+                        {% else %}
+                            N/A
+                        {% endif %}
+
+                    </span>
+
+                </div>
+
+
+                <div>
+
+                    <strong>
+                        Loudness
+                    </strong>
+
+                    <span>
+
+                        {% if submission["loudness_db"] is not none %}
+                            {{ submission["loudness_db"] }} dBFS
+                        {% else %}
+                            N/A
+                        {% endif %}
+
+                    </span>
+
+                </div>
+
+
+                <div>
+
+                    <strong>
+                        Quality
+                    </strong>
+
+                    <span>
+                        {{ submission["quality_note"] }}
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <p class="timestamp">
+
+                Submitted:
+                {{ submission["submitted_at"] }}
+
+            </p>
+
+        </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <p>
+            No audio submissions yet.
+        </p>
+
+    {% endif %}
+
+</div>
+
+</body>
+
+</html>
