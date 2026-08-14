@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# SQLite generated database
+db/*.db
+
+# Audio uploads
+audio_app/uploads/*
+!audio_app/uploads/.gitkeep
+
+# Environment/secrets
+.env
+
+# OS/editor files
+.DS_Store
+.vscode/
