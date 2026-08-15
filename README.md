@@ -723,6 +723,11 @@ steps here once confirmed.
 - **pydub 0.25.1** + **FFmpeg** (external binary, not pip-installable) — audio metadata extraction
 - Python standard library: `csv`, `json`, `re`, `difflib.SequenceMatcher`, `pathlib`, `datetime` —
   used throughout `merge_pipeline.py` for parsing, normalization, and entity resolution
-- **n8n / Make / Zapier** — one of these was used for Task 2 per the assignment brief; the specific
-  tool is not confirmed from the files reviewed (see Task 2 caveat)
+- **n8n — workflow automation / low-code orchestration
+SQLite — database for candidate/person records and skill categories
+Groq API — LLM inference provider
+Llama 3.1 8B Instant — LLM used for skill categorization
+n8n LangChain / Basic LLM Chain — connects the workflow to the LLM
+SQL — querying untagged candidates and writing categories back
+Docker — used to run n8n locally in a consistent environment
 - **Git / GitHub** — version control and submissions
