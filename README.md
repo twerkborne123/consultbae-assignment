@@ -137,17 +137,297 @@ non-`new_person` match was resolved by exact email, exact phone, or exact name+c
 
 ---
 
-# Task 2 — No-Code/Low-Code Automation
+Task 2 Documentation: AI Skill Categorization Automation using n8n + SQLite + Groq
+1. Purpose
+This document explains how to set up, run, and reuse the Task 2 automation for the ConsultBae AI Automation Assignment.
+The automation reads candidate/person records from the SQLite database, sends each person's skills to an LLM using n8n, categorizes the person into one skill category, and writes the result back into the database.
+Task 2 requirement:
+> Build one working no-code/low-code automation using n8n, Make, or Zapier, connected to the project data. The chosen implementation uses n8n with an LLM step to auto-tag each person's skill category and write results back to the database.
+---
+2. Final Automation Summary
+Tool used: n8n
+Database used: SQLite
+LLM provider used: Groq
+Model used during testing:
+```text
+llama-3.1-8b-instant
+```
+Workflow file:
+```text
+automation/skill\_tagger.json
+```
+Database file:
+```text
+db/consultbae.db
+```
+Main output table:
+```text
+skill\_category
+```
+---
+3. What the Workflow Does
+The workflow performs the following steps:
+Starts manually from n8n using the Execute workflow button.
+Reads untagged people from the SQLite database.
+Combines each person's available skills using `GROUP\_CONCAT`.
+Sends the person's name, city, and skills to the LLM.
+The LLM returns one category and a short reason.
+The result is inserted into the `skill\_category` table.
+The workflow can be safely rerun because it only selects people who have not yet been tagged.
+---
+4. Database Setup
+Before running the automation, make sure the ingestion pipeline has been executed.
+From the repository root:
+```powershell
+python .\\ingest\\merge\_pipeline.py
+```
+This creates the SQLite database at:
+```text
+db/consultbae.db
+```
+Expected output includes something like:
+```text
+Canonical people created: 54
+Database created: db\\consultbae.db
+```
+---
+5. Additional Table Required for Task 2
+The original schema contains `person`, `source\_record`, `skill`, and `audio\_submission` tables. For Task 2, an additional table is used to store the AI-generated category.
+Run this once from the repository root:
+```powershell
+python -c "import sqlite3; con=sqlite3.connect('db/consultbae.db'); con.execute('CREATE TABLE IF NOT EXISTS skill\_category (person\_id INTEGER PRIMARY KEY, category TEXT, reasoning TEXT, tagged\_at TEXT, FOREIGN KEY(person\_id) REFERENCES person(person\_id))'); con.commit(); con.close(); print('skill\_category table ready')"
+```
+Expected output:
+```text
+skill\_category table ready
+```
+---
+6. Running n8n Locally with Docker
+Start n8n from the repository root:
+```powershell
+docker run -it --rm --name n8n `
+  -p 5678:5678 `
+  -e NODE\_TLS\_REJECT\_UNAUTHORIZED=0 `
+  -v "${PWD}:/repo" `
+  -v n8n\_data:/home/node/.n8n `
+  n8nio/n8n
+```
+Then open:
+```text
+http://localhost:5678
+```
+Why `/repo` is used:
+The local repository is mounted inside the n8n Docker container as `/repo`, so n8n can access the SQLite database using this path:
+```text
+/repo/db/consultbae.db
+```
+---
+7. Required n8n Setup
+7.1 Install SQLite Community Node
+The standard n8n setup may not include a built-in SQLite node. Install the SQLite community node from n8n:
+```text
+Settings/Gear icon → Community nodes → Install
+```
+Install package:
+```text
+n8n-nodes-sqlite3
+```
+After installation, restart n8n.
+---
+7.2 SQLite Credential
+Create a SQLite credential in n8n with the database path:
+```text
+/repo/db/consultbae.db
+```
+This credential is used by both SQLite nodes in the workflow.
+---
+7.3 Groq Credential
+Create a Groq API key from:
+```text
+https://console.groq.com/keys
+```
+Then create a Groq credential in n8n and select the model:
+```text
+llama-3.1-8b-instant
+```
+Any working Groq chat model can be used, but this model was used successfully during testing.
+---
+8. Workflow Structure
+The workflow has these nodes:
+```text
+Manual Trigger
+    ↓
+SQLite: Read untagged people
+    ↓
+Basic LLM Chain
+    ↓
+SQLite: Insert/update skill category
 
-> **Not independently verified.** The repository contains `automation/skill_tagger.json`, which by
-> its filename appears to implement the "LLM step that auto-tags each person's skill category"
-> option from the assignment brief. I was unable to retrieve the contents of this file with the
-> tools available in this session, so I have not confirmed which of the three automation options
-> was actually built, how the flow is triggered, what LLM prompt or writeback logic it uses, or
-> what tool (n8n / Make / Zapier) it targets. **Please fill in this section yourself** —
-> objective, approach, trigger, what it writes back and where, and any limitations — rather than
-> have it guessed at here. Once filled in, keep the same "implemented vs. not" honesty standard as
-> the rest of this README.
+Groq Chat Model
+    ↓
+Connected to Basic LLM Chain as model input
+```
+---
+9. First SQLite Node: Read Untagged People
+Node type:
+```text
+SQLite → Execute SQL Query
+```
+Query used:
+```sql
+SELECT 
+  p.person\_id,
+  p.canonical\_name,
+  p.city,
+  GROUP\_CONCAT(s.skill, ', ') AS skills
+FROM person p
+LEFT JOIN skill s ON p.person\_id = s.person\_id
+LEFT JOIN skill\_category sc ON p.person\_id = sc.person\_id
+WHERE sc.person\_id IS NULL
+GROUP BY p.person\_id
+LIMIT 10;
+```
+Why this query is safe:
+It only selects people who are not already present in `skill\_category`.
+The workflow can be rerun multiple times without tagging the same person again.
+`LIMIT 10` keeps each run small and avoids LLM rate-limit problems.
+If the API rate limit is hit, reduce this to:
+```sql
+LIMIT 5;
+```
+---
+10. LLM Prompt
+Node type:
+```text
+Basic LLM Chain
+```
+Prompt source:
+```text
+Define below
+```
+Prompt:
+```text
+Categorize this person into exactly one category:
+Web Dev, Data, Automation-heavy, Backend, Mobile, Other.
+
+Name: {{ $json.canonical\_name }}
+City: {{ $json.city }}
+Skills: {{ $json.skills }}
+
+Return only JSON:
+{
+  "category": "...",
+  "reasoning": "short reason"
+}
+```
+Expected LLM output example:
+```json
+{
+  "category": "Automation-heavy",
+  "reasoning": "Core skills include n8n, workflow automation, and API orchestration."
+}
+```
+---
+11. Second SQLite Node: Write Tags Back
+Node type:
+```text
+SQLite → Execute SQL Query
+```
+Important setting:
+```text
+Allow Expressions in Query (Unsafe): ON
+```
+Query expression:
+```sql
+INSERT OR REPLACE INTO skill\_category (person\_id, category, reasoning, tagged\_at)
+VALUES (
+  {{ $('Execute a SQL query').item.json.person\_id }},
+  '{{ JSON.parse($json.text).category.replace(/'/g, "''") }}',
+  '{{ JSON.parse($json.text).reasoning.replace(/'/g, "''") }}',
+  datetime('now')
+);
+```
+Why `INSERT OR REPLACE` is used:
+If a person already has a tag, it can be updated.
+If a person does not have a tag, a new row is inserted.
+Why quotes are escaped:
+Some LLM reasons may contain apostrophes.
+`.replace(/'/g, "''")` prevents SQL errors caused by single quotes.
+---
+12. How to Run the Workflow
+Start n8n using Docker.
+Open `http://localhost:5678`.
+Open the workflow.
+Click Execute workflow.
+The workflow processes up to 10 untagged people per run.
+Repeat until the first SQLite node returns `0 items`.
+In this project, the workflow was run until all 54 people were tagged.
+---
+13. How to Verify Results
+Run this from the repository root:
+```powershell
+python -c "import sqlite3; con=sqlite3.connect('db/consultbae.db'); print(con.execute('SELECT COUNT(\*) FROM skill\_category').fetchone()\[0]); con.close()"
+```
+Expected output:
+```text
+54
+```
+To preview saved tags:
+```powershell
+python -c "import sqlite3; con=sqlite3.connect('db/consultbae.db'); rows=con.execute('SELECT person\_id, category, reasoning FROM skill\_category LIMIT 10').fetchall(); \[print(r) for r in rows]; con.close()"
+```
+---
+14. Exporting the Workflow
+In n8n:
+```text
+Top-right menu / three dots → Download → Workflow JSON
+```
+Save the exported file as:
+```text
+automation/skill\_tagger.json
+```
+This file should be committed to the repository.
+---
+15. Notes and Issues Encountered
+Issue 1: SQLite Node Was Not Available by Default
+The SQLite node did not appear initially in n8n.
+Fix:
+Installed the community node:
+```text
+n8n-nodes-sqlite3
+```
+---
+Issue 2: OpenRouter Rate Limit
+The first LLM setup used OpenRouter, but the free model hit a rate limit after around 40 records.
+Fix:
+Switched the LLM provider to Groq and continued processing the remaining untagged records.
+---
+Issue 3: Processing Too Many Rows at Once
+Running all 54 people in one go can hit LLM provider rate limits.
+Fix:
+The SQLite query uses:
+```sql
+WHERE sc.person\_id IS NULL
+LIMIT 10;
+```
+This allows the workflow to be safely rerun in small batches.
+---
+Issue 4: SQL Insert Initially Failed Due to n8n Expressions
+The second SQLite node initially treated `{{ ... }}` as literal SQL text.
+Fix:
+Enabled:
+```text
+Allow Expressions in Query (Unsafe)
+```
+Then used a query expression to dynamically insert the LLM output.
+---
+16. Final Status
+Task 2 is complete.
+Final result:
+```text
+54/54 people tagged successfully
+```
+The workflow is reusable because it only processes untagged people and stores results in the `skill\_category` table.
 
 ---
 
