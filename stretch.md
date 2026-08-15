@@ -65,4 +65,4 @@ storage itself isn't the expensive part. The real cost risk is compute: if proce
 synchronous and in-request, handling the spike means paying for a much bigger single server just
 to survive Saturday morning, when the same volume spread across a background queue could run on
 a small server plus a couple of cheap workers. Async processing isn't just about correctness here,
-it's the cheaper way to handle a weekend spike too.
+it's the cheaper way to handle a weekend spike.
