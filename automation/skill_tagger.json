@@ -1,0 +1,155 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        16
+      ],
+      "id": "edb8c74a-0e40-439d-aca9-e85a115df961",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  p.person_id,\n  p.canonical_name,\n  p.city,\n  GROUP_CONCAT(s.skill, ', ') AS skills\nFROM person p\nLEFT JOIN skill s ON p.person_id = s.person_id\nLEFT JOIN skill_category sc ON p.person_id = sc.person_id\nWHERE sc.person_id IS NULL\nGROUP BY p.person_id\nLIMIT 10;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-sqlite3.sqliteNode",
+      "typeVersion": 2,
+      "position": [
+        -32,
+        16
+      ],
+      "id": "91b92f39-afd7-43f3-8c76-0e6457e4f8bd",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "sqliteCredentialsApi": {
+          "id": "8rfiGLWxBCAGcQ8y",
+          "name": "SQLite Database account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Categorize this person into exactly one category:\nWeb Dev, Data, Automation-heavy, Backend, Mobile, Other.\n\nName: {{ $json.canonical_name }}\nCity: {{ $json.city }}\nSkills: {{ $json.skills }}\n\nReturn only JSON:\n{\n  \"category\": \"...\",\n  \"reasoning\": \"short reason\"\n}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        224,
+        16
+      ],
+      "id": "f3237469-dccd-4840-a8e1-b496652d5eed",
+      "name": "Basic LLM Chain1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "allowExpressions": true,
+        "queryExpression": "=INSERT OR REPLACE INTO skill_category (person_id, category, reasoning, tagged_at)\nVALUES (\n  {{ $('Execute a SQL query').item.json.person_id }},\n  '{{ JSON.parse($json.text).category.replace(/'/g, \"''\") }}',\n  '{{ JSON.parse($json.text).reasoning.replace(/'/g, \"''\") }}',\n  datetime('now')\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-sqlite3.sqliteNode",
+      "typeVersion": 2,
+      "position": [
+        592,
+        16
+      ],
+      "id": "723beef6-c711-4f77-a522-58a2f823b02e",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "sqliteCredentialsApi": {
+          "id": "8rfiGLWxBCAGcQ8y",
+          "name": "SQLite Database account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama-3.1-8b-instant",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        224,
+        208
+      ],
+      "id": "67503916-4148-4bc2-b34c-86bf7180c31e",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "d0pyKVBBAYvIX4iX",
+          "name": "Groq account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain1": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "658bb8e6-5617-4cfa-8932-efdaf01e7c5f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d54f92be0d59f44718bc9dfce91817d1ef882eab2a4579c545daaae7b0efca01"
+  },
+  "nodeGroups": [],
+  "id": "GnAbwNkM2SBwHw3d",
+  "tags": []
+}
