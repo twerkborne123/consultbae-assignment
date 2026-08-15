@@ -137,14 +137,14 @@ non-`new_person` match was resolved by exact email, exact phone, or exact name+c
 
 ---
 
-Task 2 Documentation: AI Skill Categorization Automation using n8n + SQLite + Groq
-1. Purpose
+# Task 2 Documentation: AI Skill Categorization Automation using n8n + SQLite + Groq
+### 1. Purpose
 This document explains how to set up, run, and reuse the Task 2 automation for the ConsultBae AI Automation Assignment.
 The automation reads candidate/person records from the SQLite database, sends each person's skills to an LLM using n8n, categorizes the person into one skill category, and writes the result back into the database.
 Task 2 requirement:
 > Build one working no-code/low-code automation using n8n, Make, or Zapier, connected to the project data. The chosen implementation uses n8n with an LLM step to auto-tag each person's skill category and write results back to the database.
 ---
-2. Final Automation Summary
+### 2. Final Automation Summary
 Tool used: n8n
 Database used: SQLite
 LLM provider used: Groq
@@ -165,7 +165,7 @@ Main output table:
 skill\_category
 ```
 ---
-3. What the Workflow Does
+### 3. What the Workflow Does
 The workflow performs the following steps:
 Starts manually from n8n using the Execute workflow button.
 Reads untagged people from the SQLite database.
@@ -175,7 +175,7 @@ The LLM returns one category and a short reason.
 The result is inserted into the `skill\_category` table.
 The workflow can be safely rerun because it only selects people who have not yet been tagged.
 ---
-4. Database Setup
+### 4. Database Setup
 Before running the automation, make sure the ingestion pipeline has been executed.
 From the repository root:
 ```powershell
@@ -191,7 +191,7 @@ Canonical people created: 54
 Database created: db\\consultbae.db
 ```
 ---
-5. Additional Table Required for Task 2
+### 5. Additional Table Required for Task 2
 The original schema contains `person`, `source\_record`, `skill`, and `audio\_submission` tables. For Task 2, an additional table is used to store the AI-generated category.
 Run this once from the repository root:
 ```powershell
@@ -202,7 +202,7 @@ Expected output:
 skill\_category table ready
 ```
 ---
-6. Running n8n Locally with Docker
+### 6. Running n8n Locally with Docker
 Start n8n from the repository root:
 ```powershell
 docker run -it --rm --name n8n `
@@ -222,7 +222,7 @@ The local repository is mounted inside the n8n Docker container as `/repo`, so n
 /repo/db/consultbae.db
 ```
 ---
-7. Required n8n Setup
+### 7. Required n8n Setup
 7.1 Install SQLite Community Node
 The standard n8n setup may not include a built-in SQLite node. Install the SQLite community node from n8n:
 ```text
@@ -252,7 +252,7 @@ llama-3.1-8b-instant
 ```
 Any working Groq chat model can be used, but this model was used successfully during testing.
 ---
-8. Workflow Structure
+### 8. Workflow Structure
 The workflow has these nodes:
 ```text
 Manual Trigger
@@ -268,7 +268,7 @@ Groq Chat Model
 Connected to Basic LLM Chain as model input
 ```
 ---
-9. First SQLite Node: Read Untagged People
+### 9. First SQLite Node: Read Untagged People
 Node type:
 ```text
 SQLite → Execute SQL Query
@@ -296,7 +296,7 @@ If the API rate limit is hit, reduce this to:
 LIMIT 5;
 ```
 ---
-10. LLM Prompt
+### 10. LLM Prompt
 Node type:
 ```text
 Basic LLM Chain
@@ -328,7 +328,7 @@ Expected LLM output example:
 }
 ```
 ---
-11. Second SQLite Node: Write Tags Back
+### 11. Second SQLite Node: Write Tags Back
 Node type:
 ```text
 SQLite → Execute SQL Query
@@ -354,7 +354,7 @@ Why quotes are escaped:
 Some LLM reasons may contain apostrophes.
 `.replace(/'/g, "''")` prevents SQL errors caused by single quotes.
 ---
-12. How to Run the Workflow
+### 12. How to Run the Workflow
 Start n8n using Docker.
 Open `http://localhost:5678`.
 Open the workflow.
@@ -363,7 +363,7 @@ The workflow processes up to 10 untagged people per run.
 Repeat until the first SQLite node returns `0 items`.
 In this project, the workflow was run until all 54 people were tagged.
 ---
-13. How to Verify Results
+### 13. How to Verify Results
 Run this from the repository root:
 ```powershell
 python -c "import sqlite3; con=sqlite3.connect('db/consultbae.db'); print(con.execute('SELECT COUNT(\*) FROM skill\_category').fetchone()\[0]); con.close()"
@@ -377,7 +377,7 @@ To preview saved tags:
 python -c "import sqlite3; con=sqlite3.connect('db/consultbae.db'); rows=con.execute('SELECT person\_id, category, reasoning FROM skill\_category LIMIT 10').fetchall(); \[print(r) for r in rows]; con.close()"
 ```
 ---
-14. Exporting the Workflow
+### 14. Exporting the Workflow
 In n8n:
 ```text
 Top-right menu / three dots → Download → Workflow JSON
@@ -421,7 +421,7 @@ Allow Expressions in Query (Unsafe)
 ```
 Then used a query expression to dynamically insert the LLM output.
 ---
-16. Final Status
+### 16. Final Status
 Task 2 is complete.
 Final result:
 ```text
