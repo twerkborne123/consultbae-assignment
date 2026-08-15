@@ -445,4 +445,4 @@ steps here once confirmed.
   used throughout `merge_pipeline.py` for parsing, normalization, and entity resolution
 - **n8n / Make / Zapier** — one of these was used for Task 2 per the assignment brief; the specific
   tool is not confirmed from the files reviewed (see Task 2 caveat)
-- **Git / GitHub** — version control and submission
+- **Git / GitHub** — version control and submissions
